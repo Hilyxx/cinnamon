@@ -215,6 +215,7 @@ class Module:
             section.add_row(buttons)
 
             section.add_row(GSettingsSwitch(_("Allow the pointer to pass through the edges of panels"), "org.cinnamon", "no-adjacent-panel-barriers"))
+            section.add_row(GSettingsSwitch(_("Black panel when windows are maximized"), "org.cinnamon", "panel-black-on-maximized"))
 
             self.add_panel_button.set_sensitive(False)
 
