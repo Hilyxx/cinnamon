@@ -185,6 +185,15 @@
       </description>
     </key>
 
+    <key name="panel-black-on-maximized" type="b">
+      <default>true</default>
+      <summary>Make panel black when windows are maximized</summary>
+      <description>
+        When enabled, the panel will become black and fully opaque when a window is maximized.
+        When disabled, the panel will keep its theme appearance and transparency settings.
+      </description>
+    </key>
+
     <key name="desktop-effects-on-dialogs" type="b">
       <default>true</default>
       <summary>Enable desktop effects on dialog boxes</summary>
