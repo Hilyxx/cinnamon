@@ -74,6 +74,7 @@ const PANEL_HEIGHT_KEY = "panels-height";
 const PANEL_ZONE_ICON_SIZES = "panel-zone-icon-sizes";
 const PANEL_ZONE_SYMBOLIC_ICON_SIZES = "panel-zone-symbolic-icon-sizes";
 const PANEL_ZONE_TEXT_SIZES = "panel-zone-text-sizes";
+const PANEL_BLACK_ON_MAXIMIZED = "panel-black-on-maximized";
 
 const Direction = {
     LEFT  : 0,
@@ -2159,6 +2160,15 @@ Panel.prototype = {
         this._signalManager.connect(global.settings, "changed::no-adjacent-panel-barriers", this._updatePanelBarriers, this);
 
         this._onPanelZoneSizesChanged();
+
+        this._focusWindow = null;
+        this._maximizedWindow = null;
+        this._originalStyle = null;
+        this._blackOnMaximized = global.settings.get_boolean(PANEL_BLACK_ON_MAXIMIZED);
+        
+        this._signalManager.connect(global.display, "notify::focus-window", this._onFocusChanged, this);
+        this._signalManager.connect(global.window_manager, "size-change", this._onWindowSizeChanged, this);
+        this._signalManager.connect(global.settings, "changed::" + PANEL_BLACK_ON_MAXIMIZED, this._onBlackOnMaximizedChanged, this);
     },
 
     drawCorners: function(drawcorner)
@@ -2715,12 +2725,23 @@ Panel.prototype = {
         this._signalManager.disconnect("position-changed");
         this._signalManager.disconnect("size-changed");
 
-        if (!global.display.focus_window)
+        // Restore original style when losing focus
+        if (!global.display.focus_window) {
+            this._restoreOriginalStyle();
             return;
+        }
 
         this._focusWindow = global.display.focus_window;
         this._signalManager.connect(this._focusWindow, "position-changed", this._updatePanelVisibility, this);
         this._signalManager.connect(this._focusWindow, "size-changed", this._updatePanelVisibility, this);
+      
+        // Update panel style based on new focused window
+        if (this._focusWindow.get_maximized() && this._blackOnMaximized) {
+            this._setMaximizedStyle();
+        } else {
+            this._restoreOriginalStyle();
+        }
+
         this._updatePanelVisibility();
     },
 
@@ -3980,6 +4001,49 @@ Panel.prototype = {
         this._leftBoxDNDHandler.reset();
         this._centerBoxDNDHandler.reset();
         this._rightBoxDNDHandler.reset();
+    },
+
+    _onWindowSizeChanged: function(wm, actor) {
+        let win = actor.get_meta_window();
+        if (!win) return;
+        
+        if (win.get_maximized() && this._blackOnMaximized) {
+            this._setMaximizedStyle();
+        } else if (win === this._focusWindow) {
+            // Only restore original style if this is the window we're tracking
+            this._restoreOriginalStyle();
+        }
+    },
+
+    _setMaximizedStyle: function() {
+        if (!this._originalStyle) {
+            let themeNode = this.actor.get_theme_node();
+            this._originalStyle = {
+                backgroundColor: themeNode.get_background_color(),
+                opacity: this.actor.opacity
+            };
+        }
+        
+        this.actor.set_style('background-color: rgba(0, 0, 0, 1.0);');
+        this.actor.opacity = 255;
+    },
+
+    _restoreOriginalStyle: function() {
+        if (this._originalStyle) {
+            this.actor.set_style('');
+            this.actor.opacity = this._originalStyle.opacity;
+        }
+    },
+
+    _onBlackOnMaximizedChanged: function() {
+        this._blackOnMaximized = global.settings.get_boolean(PANEL_BLACK_ON_MAXIMIZED);
+        if (this._focusWindow && this._focusWindow.get_maximized()) {
+            if (this._blackOnMaximized) {
+                this._setMaximizedStyle();
+            } else {
+                this._restoreOriginalStyle();
+            }
+        }
     }
 };
 
